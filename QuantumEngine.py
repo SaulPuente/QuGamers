@@ -34,6 +34,9 @@ class circuit():
     
     def Z(self,qr):
         self.qc.z(qr)
+        
+    def R(self,qr,angle):
+        self.qc.ry(angle,qr)
     
     def CX(self,control,target):
         self.qc.cx(control,target)

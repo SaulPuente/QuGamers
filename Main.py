@@ -11,6 +11,8 @@ import GameEngine
 import ArmyCode
 import QuantumEngine
 
+from numpy import pi as pi
+
 WIDTH = 700
 HEIGHT = 512
 DIMENSION = 10
@@ -102,7 +104,8 @@ def intro():
             if e.type == p.QUIT:
                 showing = "-"
                 intro = False
-                quit()
+                p.quit()
+                sys.exit()
             elif e.type == p.MOUSEBUTTONDOWN:
                 mouse = p.mouse.get_pos()
                 if HEIGHT*7/8 - 50 <= mouse[1] <= HEIGHT*7/8 + 50 and WIDTH/2 - 20 <= mouse[0] <= WIDTH/2 + 20: 
@@ -131,6 +134,9 @@ def drawStartMenu(screen, mouse):
     p.display.update() 
     
 
+import sys
+
+
 def playGame():
     global nSoldiers
     global running
@@ -158,6 +164,7 @@ def playGame():
     z = False
     cx = False
     m = False
+    r = False
     
     validMoves = gs.getValidMoves()
     validAttacks = gs.getAllPossibleAttacks()
@@ -178,6 +185,28 @@ def playGame():
     movedPieceID = -1
     
     winner = "draw"
+    fff = False
+    
+    # basic font for user typed
+    base_font = p.font.Font(None, 32)
+    user_text = ''
+  
+    # create rectangle
+    input_rect = p.Rect(HEIGHT, 330, 140, 32)
+  
+    #color_active stores color(lightskyblue3) which
+    # gets active when input box is clicked by user
+    color_active = p.Color('lightskyblue3')
+  
+    # color_passive store color(chartreuse4) which is
+    # color of input box.
+    color_passive = p.Color('chartreuse4')
+    color = color_passive
+    
+    active = False
+    
+    
+    angle = 0
     ##############3
     moveMade = False #flag variable for when a move is made
     loadImages()
@@ -190,6 +219,12 @@ def playGame():
                 showing = "-"
                 running = False
             elif e.type == p.MOUSEBUTTONDOWN:
+                
+                if input_rect.collidepoint(e.pos):
+                    active = True
+                else:
+                    active = False
+                    
                 location = p.mouse.get_pos()
                 col = location[0]//SQ_SIZE
                 row = location[1]//SQ_SIZE
@@ -198,19 +233,25 @@ def playGame():
                 if sqSelected == (row,col):
                     sqSelected = ()
                     playerClicks = []
+                    
+                    if 0 < row < DIMENSION and 0 < col < DIMENSION:
+                        fff = isinstance(gs.board[row][col], ArmyCode.soldier)
+                    
                     #print("wtf1")
                     #---------------------------------------------------------------
-                    if moveMade and not attackMade:
-                        attackMade = True
-                        movedPieceID = -1
-                        gs.whiteToMove = not gs.whiteToMove
+                        if moveMade and not attackMade and fff:
+                            attackMade = True
+                            movedPieceID = -1
+                            gs.whiteToMove = not gs.whiteToMove
+                            fff = False
                     #print(moveMade)
-                    elif not moveMade:
+                        elif not moveMade and fff:
                         #print("wtf2")
-                        moveMade = True
-                        attackMade = True
-                        movedPieceID = -1
-                        gs.whiteToMove = not gs.whiteToMove
+                            moveMade = True
+                            attackMade = True
+                            movedPieceID = -1
+                            gs.whiteToMove = not gs.whiteToMove
+                            fff = False
                     #print(gs.whiteToMove,2)
                     #---------------------------------------------------------------
                 else:
@@ -240,6 +281,9 @@ def playGame():
                             if z:
                                 qc1.Z(gs.selectedPiece.qubit.qr)
                                 z = False
+                            if r:
+                                qc1.R(gs.selectedPiece.qubit.qr,angle)
+                                r = False
                             if m  and gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
                                 v = qc1.collapse(gs.selectedPiece,gs)
                                 m = False
@@ -257,6 +301,9 @@ def playGame():
                             if z:
                                 qc2.Z(gs.selectedPiece.qubit.qr)
                                 z = False
+                            if r:
+                                qc2.R(gs.selectedPiece.qubit.qr,angle)
+                                r = False
                             if m  and gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
                                 v = qc2.collapse(gs.selectedPiece,gs)
                                 m = False
@@ -407,7 +454,42 @@ def playGame():
                     z = True
                 if e.key == p.K_m:
                     m = True
-                    
+                if e.key == p.K_r:
+                    r = True
+                if e.key == p.K_BACKSPACE:
+  
+                    # get text input from 0 to -1 i.e. end.
+                    user_text = user_text[:-1]
+  
+                # Unicode standard is used for string
+                # formation
+                else:
+                    newChar = e.unicode
+                    #print(newChar.isdigit())
+                    if newChar.isdigit() or newChar == "p" or newChar == "i" or newChar == ".": 
+                        user_text += newChar
+                if user_text.isdigit():
+                    angle = float(user_text)
+                elif len(user_text) >= 2:
+                    if user_text == "pi":
+                        angle = pi
+                    elif user_text[-2:] == "pi":
+                        angle = float(user_text[:-2])*pi
+                    elif user_text == "0.":
+                        angle = 0
+                    else:
+                        for i in range(len(user_text)):
+                            if user_text[i] == ".":
+                                if len(user_text) > i + 1:
+                                    if user_text[-1] != "p":
+                                        angle = float(user_text[:i]) + (1/(10**len(user_text[i+1:])))*float(user_text[i+1:])
+                                    elif user_text[-1] == ".":
+                                        angle = float(user_text[:-1])
+                elif len(user_text) == 0 or user_text == ".":
+                    angle = 0
+                #print(angle)
+                
+                
                 #------------------------------------------------------------------------------
                 
                     #status += move.getChessNotation() +"\n"
@@ -422,6 +504,9 @@ def playGame():
                 #if e.key == p.K_h:
                  #   superposition = True
         #print(gs.whiteToMove,5) 
+        
+            
+        
         if moveMade:
             
 ########################3333
@@ -449,10 +534,34 @@ def playGame():
             
 ############################3333
             
+        
+        
             
+        #print(angle)
         #print(qc1)
         #print(qc2)
         drawGameState(screen, gs, clickedd, validMoves, sqSelected, validAttacks, winner)
+        
+        screen.blit(p.font.SysFont(None, 24).render("Ry's angle:", 0, p.Color("black")), (520, 300))
+        if active:
+            color = color_active
+        else:
+            color = color_passive
+        # draw rectangle and argument passed which should
+        # be on screen
+        p.draw.rect(screen, color, input_rect)
+  
+        text_surface = base_font.render(user_text, True, p.Color("black"))#(255, 255, 255))
+        #text_surface = p.font.SysFont(None, 24).render(user_text, True, (255, 255, 255))
+      
+        # render at position stated in arguments
+        
+        
+        screen.blit(text_surface, (input_rect.x+5, input_rect.y+5))
+        # set width of textfield so that text cannot get
+        # outside of user's text input
+        input_rect.w = max(100, text_surface.get_width()+10)
+        #print(user_text)
         clock.tick(MAX_FPS)
         p.display.flip()
 ####################3
@@ -502,6 +611,7 @@ def drawGameState(screen,gs, clickedd, validMoves, sqSelected,validAttacks,winne
             writeStatus(screen,gs.selectedPiece)
     if winner != "draw":
             writeWinner(screen,winner)
+    #screen.blit(p.font.SysFont(None, 24).render("Ry's angle:", 0, p.Color("black")), (HEIGHT, 200))
         ##################
     drawPieces(screen, gs.board)
     
