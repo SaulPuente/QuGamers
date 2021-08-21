@@ -102,13 +102,13 @@ def intro():
             if e.type == p.QUIT:
                 showing = "-"
                 intro = False
-                quit()
+                #quit()
             elif e.type == p.MOUSEBUTTONDOWN:
                 mouse = p.mouse.get_pos()
                 if HEIGHT*7/8 - 50 <= mouse[1] <= HEIGHT*7/8 + 50 and WIDTH/2 - 20 <= mouse[0] <= WIDTH/2 + 20: 
                     showing = "game"
                     intro = False
-                    quit()
+                    #quit()
         drawStartMenu(screen, mouse)           
         clock.tick(MAX_FPS)
         p.display.flip()
