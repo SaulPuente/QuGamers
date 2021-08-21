@@ -59,6 +59,7 @@ class circuit():
             
         soldier.status["superposition"] = False
         self.qc.reset(soldier.qubit.qr)#
+        return v
 
 def get_probs(qc,ID,n):
     p0 = 0

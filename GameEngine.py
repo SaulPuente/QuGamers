@@ -6,6 +6,7 @@ Created on Sun Aug 15 00:25:39 2021
 """
 import ArmyCode
 from Main import DIMENSION
+#import QuantumEngine
 #global DIMENSION
 
 class GameState():
@@ -28,12 +29,15 @@ class GameState():
         self.moves = " " #-----------
         self.selectedPiece = "--"
         self.spa = 0
+        
+        self.wSoldiers = 0
+        self.bSoldiers = 0
     
     def makeMove(self,move,superposition = False):
         #-----------------------------------
         if not superposition:
             move.pieceMoved.status['state0'] = (move.endRow,move.endCol)
-            self.whiteToMove = not self.whiteToMove
+            #self.whiteToMove = not self.whiteToMove
         else:
             move.pieceMoved.status['state1'] = (move.endRow,move.endCol)
             move.pieceMoved.status['superposition'] = True
@@ -44,6 +48,42 @@ class GameState():
         
         #-------------
         self.moves = move.getChessNotation() +" \n" + self.moves 
+        
+#-------------------------------------------------------------------------------
+    def makeAttack(self,attack,qc = 0,gs = 0):
+        
+        self.whiteToMove = not self.whiteToMove
+        
+        pieceAttacked = self.board[attack.endRow][attack.endCol]
+        #pieceAttacked.status["health"] -= 1
+        
+        if pieceAttacked.status["superposition"]:
+            if (attack.endRow,attack.endCol) == pieceAttacked.status["state0"]:
+                state = 0
+            elif (attack.endRow,attack.endCol) == pieceAttacked.status["state1"]:
+                state = 1
+            v = qc.collapse(pieceAttacked,gs)
+            if v == state:
+                pieceAttacked.status["health"] -= 1
+        else:
+            pieceAttacked.status["health"] -= 1
+        
+        if pieceAttacked.status["health"] == 0:
+            if pieceAttacked.status["superposition"] == True:
+                pos0 = pieceAttacked.status["state0"]
+                pos1 = pieceAttacked.status["state1"]
+                self.board[pos0[0]][pos0[1]] = "--"
+                self.board[pos1[0]][pos1[1]] = "--"
+                #print("hey")
+            else:
+                pos0 = pieceAttacked.status["state0"]
+                self.board[pos0[0]][pos0[1]] = "--"
+            if pieceAttacked.status["image1"][0] == 'w':
+                self.wSoldiers -= 1
+            elif pieceAttacked.status["image1"][0] == 'b':
+                self.bSoldiers -= 1
+
+#-------------------------------------------------------------------------------
         
     def undoMove(self):
         if len(self.moveLog) != 0:
@@ -59,6 +99,7 @@ class GameState():
     
     def getAllPossibleMoves(self):
         moves = []
+        #attacks = []
         for r in range(len(self.board)):
             for c in range(len(self.board[r])):
                 if isinstance(self.board[r][c],ArmyCode.soldier):
@@ -66,8 +107,8 @@ class GameState():
                     if (turn == 'w' and self.whiteToMove) or (turn == 'b' and not self.whiteToMove):
                         piece = self.board[r][c].status["image1"][1]
                         if piece != '--':
-                            self.getBarbieMoves(r,c,moves)
-        return moves
+                            self.getBarbieMoves(r,c,moves)#, attacks)
+        return moves#, attacks
     
 ############################    
     
@@ -85,9 +126,9 @@ class GameState():
         return attacks
     
     
-    def getBarbieMoves(self,r,c,moves):
+    def getBarbieMoves(self,r,c,moves):#,attacks):
         directions = ((-1,0),(0,-1),(1,0),(0,1),(-1,-1),(1,-1),(1,1),(-1,1))
-        enemyColor = "b" if self.whiteToMove else "w"
+        #enemyColor = "b" if self.whiteToMove else "w"
         for d in directions:
             if abs(d[0]) == 1 and abs(d[1]) == 1:
                 lim=2
@@ -100,24 +141,28 @@ class GameState():
                     endPiece = self.board[endRow][endCol]
                     if endPiece == "--":
                         moves.append(Move((r,c),(endRow,endCol),self.board))
-                    elif endPiece.status["image1"][0] == enemyColor:
-                        moves.append(Move((r,c),(endRow,endCol),self.board))
-                        break
                     else:
+                        #breakIt = True
                         break
-                else:
-                    break
+                    #elif endPiece.status["image1"][0] == enemyColor:
+                    #    attacks.append(Move((r,c),(endRow,endCol),self.board))
+                    #    break
+                    #else:
+                    #    break
+                #else:
+                    #break
                 
     def getBarbieAttack(self,r,c,attacks):
-        directions = ((-1,0),(0,-1),(1,0),(0,1),(-1,2),(2,-1),(1,-2),(-2,1),(1,2),(2,1),(-1,-2),(-2,-1))
+        directions = ((-1,0),(0,-1),(1,0),(0,1),(1,1),(-1,-1),(1,-1),(-1,1))#,
+                      #(-1,2),(0,2),(2,0),(0,-2),(-2,0),(2,-1),(1,-2),(-2,1),(1,2),(2,1),(-1,-2),(-2,-1))
         allyColor = "w" if self.whiteToMove else "b"
         for d in directions:
             endRow = r + d[0] 
             endCol = c + d[1] 
-            if ((d[0]**2+d[1]**2) == 1):
-               endRow = r + d[0]*3 
-               endCol = c + d[1]*3
-            if 0 <= endRow < 8 and 0 <= endCol < 8:
+            #if ((d[0]**2+d[1]**2) <= 5):
+            #   endRow = r + d[0]*3 
+            #   endCol = c + d[1]*3
+            if 0 <= endRow < DIMENSION and 0 <= endCol < DIMENSION:
                 endPiece = self.board[endRow][endCol]
                 if isinstance(endPiece,ArmyCode.soldier):
                     if endPiece.status["image1"][0] != allyColor:

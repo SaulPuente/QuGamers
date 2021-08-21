@@ -102,7 +102,7 @@ def intro():
             if e.type == p.QUIT:
                 showing = "-"
                 intro = False
-                #quit()
+                quit()
             elif e.type == p.MOUSEBUTTONDOWN:
                 mouse = p.mouse.get_pos()
                 if HEIGHT*7/8 - 50 <= mouse[1] <= HEIGHT*7/8 + 50 and WIDTH/2 - 20 <= mouse[0] <= WIDTH/2 + 20: 
@@ -168,8 +168,16 @@ def playGame():
     qc2 = QuantumEngine.circuit()
     for soldier in blackArmy:
         qc2.addQubit(soldier.qubit.qr)#,soldier.qubit.cr)
+    #print(nSoldiers)
+    gs.spa = (nSoldiers)//2
     
-    gs.spa = (nSoldiers+1)//2
+    gs.wSoldiers = (nSoldiers)//2
+    gs.bSoldiers = (nSoldiers)//2
+    
+    attackMade = False
+    movedPieceID = -1
+    
+    winner = "draw"
     ##############3
     moveMade = False #flag variable for when a move is made
     loadImages()
@@ -186,16 +194,31 @@ def playGame():
                 col = location[0]//SQ_SIZE
                 row = location[1]//SQ_SIZE
                 
-                    
+                #print(gs.whiteToMove,1) 
                 if sqSelected == (row,col):
                     sqSelected = ()
                     playerClicks = []
+                    #print("wtf1")
+                    #---------------------------------------------------------------
+                    if moveMade and not attackMade:
+                        attackMade = True
+                        movedPieceID = -1
+                        gs.whiteToMove = not gs.whiteToMove
+                    #print(moveMade)
+                    elif not moveMade:
+                        #print("wtf2")
+                        moveMade = True
+                        attackMade = True
+                        movedPieceID = -1
+                        gs.whiteToMove = not gs.whiteToMove
+                    #print(gs.whiteToMove,2)
+                    #---------------------------------------------------------------
                 else:
                     sqSelected = (row,col)
                     playerClicks.append(sqSelected)
                     
                 #--------------------------------
-                
+                #print(gs.whiteToMove,3) 
                 if len(playerClicks) == 1 and (playerClicks[0][0] >= 0 
                     and playerClicks[0][0] < DIMENSION) and (playerClicks[0][1] >= 0 
                     and playerClicks[0][1] < DIMENSION):
@@ -218,7 +241,7 @@ def playGame():
                                 qc1.Z(gs.selectedPiece.qubit.qr)
                                 z = False
                             if m  and gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
-                                qc1.collapse(gs.selectedPiece,gs)
+                                v = qc1.collapse(gs.selectedPiece,gs)
                                 m = False
                                 
                             
@@ -235,7 +258,7 @@ def playGame():
                                 qc2.Z(gs.selectedPiece.qubit.qr)
                                 z = False
                             if m  and gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
-                                qc2.collapse(gs.selectedPiece,gs)
+                                v = qc2.collapse(gs.selectedPiece,gs)
                                 m = False
                                 
                             gs.selectedPiece.status["prob0"], gs.selectedPiece.status["prob1"] = QuantumEngine.get_probs(qc2.qc,gs.selectedPiece.status["ID"] - gs.spa,gs.spa)
@@ -245,6 +268,7 @@ def playGame():
                     
                 #---------------------------------
                 #Intento de superposición ---------------------------------------------
+                #print(gs.whiteToMove,4) 
                 if superposition and cont==False: #clickedd se hace falso cuando das clic una tercera vez
                     
                 #    len(playerClicks) == 3
@@ -261,13 +285,15 @@ def playGame():
                         
                         
                     #print(gs.board)
-                        print(move1.getChessNotation())
-                        print(move2.getChessNotation())
-                        if move1 in validMoves and move2 in validMoves:
+                        #print(move1.getChessNotation())
+                        #print(move2.getChessNotation())
+                        if move1 in validMoves and move2 in validMoves and not moveMade:
                             gs.makeMove(move1)
                             gs.makeMove(move2,superposition)
                             
                             moveMade = True
+                            
+                            movedPieceID = gs.selectedPiece.status["ID"]
                             
                             if gs.selectedPiece.status["image1"][0] == 'w':
                                 qc1.H(gs.selectedPiece.qubit.qr)
@@ -279,8 +305,8 @@ def playGame():
                             #gs.makeMove(move2,superposition)
                             #moveMade = True
                         
-                        print(gs.board[playerClicks[1][0]][playerClicks[1][1]])
-                        print(gs.board[playerClicks[2][0]][playerClicks[2][1]])
+                        #print(gs.board[playerClicks[1][0]][playerClicks[1][1]])
+                        #print(gs.board[playerClicks[2][0]][playerClicks[2][1]])
                         
                         sqSelected = ()
                         playerClicks = []
@@ -294,10 +320,60 @@ def playGame():
                     cont=True
                     move = GameEngine.Move(playerClicks[0],playerClicks[1], gs.board)
                     #print(gs.board)
-                    print(move.getChessNotation())
-                    if move in validMoves:
+                    #print(move.getChessNotation())
+                    if move in validMoves and not moveMade:
+                        movedPieceID = gs.selectedPiece.status["ID"]
                         gs.makeMove(move)
                         moveMade = True
+                        
+                    if move in validAttacks and moveMade and not attackMade and movedPieceID == gs.selectedPiece.status["ID"]:
+                        if gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
+                            if playerClicks[0] == gs.board[playerClicks[0][0]][playerClicks[0][1]].status["state0"]:
+                                state = 0
+                            elif playerClicks[0] == gs.board[playerClicks[0][0]][playerClicks[0][1]].status["state1"]:
+                                state = 1
+                            if gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "w":
+                                v = qc1.collapse(gs.selectedPiece,gs)
+                            elif gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "b":
+                                v = qc2.collapse(gs.selectedPiece,gs)
+                            if v == state:
+                                if gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "w":
+                                    gs.makeAttack(move,qc2,gs)
+                                elif gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "b":
+                                    gs.makeAttack(move,qc1,gs)
+                                attackMade = True
+                                movedPieceID = -1
+                        else:
+                            gs.makeAttack(move)
+                            attackMade = True
+                            movedPieceID = -1
+                        
+                    if move in validAttacks and not moveMade and not attackMade:
+                        if gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
+                            if playerClicks[0] == gs.board[playerClicks[0][0]][playerClicks[0][1]].status["state0"]:
+                                state = 0
+                            elif playerClicks[0] == gs.board[playerClicks[0][0]][playerClicks[0][1]].status["state1"]:
+                                state = 1
+                            if gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "w":
+                                v = qc1.collapse(gs.selectedPiece,gs)
+                            elif gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "b":
+                                v = qc2.collapse(gs.selectedPiece,gs)
+                            if v == state:
+                                if gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "w":
+                                    gs.makeAttack(move,qc2,gs)
+                                elif gs.board[playerClicks[0][0]][playerClicks[0][1]].status["image1"][0] == "b":
+                                    gs.makeAttack(move,qc1,gs)
+                                attackMade = True
+                                moveMade = True
+                                movedPieceID = -1
+                        else:
+                            gs.makeAttack(move)
+                            attackMade = True
+                            moveMade = True
+                            movedPieceID = -1
+                    #print(playerClicks[0],playerClicks[1])
+                    
+                        
                     sqSelected = ()
                     playerClicks = []
                 else:
@@ -309,17 +385,20 @@ def playGame():
                     #img = font.render(status, True, p.Color("black"))
                     #screen.blit(img, p.Rect(520, 0,88,512))
             #key handlers
+            
             elif e.type == p.KEYDOWN:
-                if e.key == p.K_z: #undo when z is pressed
+                if e.key == p.K_u: #undo when z is pressed
                     gs.undoMove()
                     moveMade = True
                 if e.key == p.K_h and len(playerClicks) > 0:
                     if not gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"]:
-                        print(gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"])
+                        #print(gs.board[playerClicks[0][0]][playerClicks[0][1]].status["superposition"])
                         superposition = True
                 if e.key == p.K_d:
                     print(qc1.qc)
+                    qc1.qc.draw(output='mpl', filename='circuit1.png')
                     print(qc2.qc)
+                    qc2.qc.draw(output='mpl', filename='circuit2.png')
                 if e.key == p.K_x:
                     x = True
                 if e.key == p.K_y:
@@ -342,17 +421,38 @@ def playGame():
                #     moveMade = True
                 #if e.key == p.K_h:
                  #   superposition = True
-        
+        #print(gs.whiteToMove,5) 
         if moveMade:
-            validMoves = gs.getValidMoves()
+            
 ########################3333
+            #print(gs.whiteToMove,6) 
             validAttacks = gs.getAllPossibleAttacks()
+            if not any(validAttacks) and not attackMade:
+                #print("?")
+                moveMade = False
+                attackMade = False
+                gs.whiteToMove = not gs.whiteToMove
+                validMoves = gs.getValidMoves()
+                validAttacks = gs.getAllPossibleAttacks()
+            if attackMade:
+                validAttacks = gs.getAllPossibleAttacks()
+                validMoves = gs.getValidMoves()
+                moveMade = False
+                attackMade = False
+        #print(gs.whiteToMove,7) 
+        #print(nSoldiers)
+        #print(gs.wSoldiers,gs.bSoldiers)        
+        if gs.wSoldiers == 0:
+            winner = "Player 2 wins!"
+        elif gs.bSoldiers == 0:
+            winner = "Player 1 wins!"
+            
 ############################3333
-            moveMade = False
+            
             
         #print(qc1)
         #print(qc2)
-        drawGameState(screen, gs, clickedd, validMoves, sqSelected, validAttacks)
+        drawGameState(screen, gs, clickedd, validMoves, sqSelected, validAttacks, winner)
         clock.tick(MAX_FPS)
         p.display.flip()
 ####################3
@@ -380,12 +480,15 @@ def writeStatus(screen,soldier):
     for i, item in enumerate(soldier.status.items()):
         if 5 + 24*(i+1) < HEIGHT and i < 9:
             screen.blit(p.font.SysFont(None, 24).render(item[0] + ": " + str(item[1]), 0, p.Color("black")), (520, 5 + 24*i))
+ 
     
+def writeWinner(screen,winner):
+    screen.blit(p.font.SysFont(None, 24).render(winner, 0, p.Color("black")), (520, 5))
 ################      
         
  
         
-def drawGameState(screen,gs, clickedd, validMoves, sqSelected,validAttacks):
+def drawGameState(screen,gs, clickedd, validMoves, sqSelected,validAttacks,winner):
     screen.blit(background, (0,0))
     drawBoard(screen)
     if clickedd and (sqSelected[0] >= 0 and sqSelected[0] < DIMENSION) and (sqSelected[1] >= 0 and sqSelected[1] < DIMENSION):
@@ -393,8 +496,12 @@ def drawGameState(screen,gs, clickedd, validMoves, sqSelected,validAttacks):
         ##################
         highlightSquares(screen, gs, validMoves, sqSelected, validAttacks)
         
-        if gs.selectedPiece != "--":
+        if winner != "draw":
+            writeWinner(screen,winner)
+        elif gs.selectedPiece != "--":
             writeStatus(screen,gs.selectedPiece)
+    if winner != "draw":
+            writeWinner(screen,winner)
         ##################
     drawPieces(screen, gs.board)
     
